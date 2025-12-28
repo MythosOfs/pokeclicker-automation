@@ -91,9 +91,10 @@ class AutomationShop
         titleDiv.style.marginBottom = "10px";
         shoppingSettingPanel.appendChild(titleDiv);
 
-        let isAnyItemHidden = this.__internal__buildShopItemListMenu(shoppingSettingPanel, "Pokédollars", GameConstants.Currency.money);
-        isAnyItemHidden |= this.__internal__buildShopItemListMenu(shoppingSettingPanel, "Eggs", GameConstants.Currency.questPoint);
-        isAnyItemHidden |= this.__internal__buildShopItemListMenu(shoppingSettingPanel, "Farm tools", GameConstants.Currency.farmPoint);
+        let isAnyItemHidden = this.__internal__buildShopItemListMenu(shoppingSettingPanel, "Pokédollars", GameConstants.Currency.money, false);
+        isAnyItemHidden |= this.__internal__buildShopItemListMenu(shoppingSettingPanel, "Evo Stones", GameConstants.Currency.money, true);
+        isAnyItemHidden |= this.__internal__buildShopItemListMenu(shoppingSettingPanel, "Eggs", GameConstants.Currency.questPoint, false);
+        isAnyItemHidden |= this.__internal__buildShopItemListMenu(shoppingSettingPanel, "Farm tools", GameConstants.Currency.farmPoint, false);
 
         // Set an unlock watcher if needed
         if (isAnyItemHidden)
@@ -186,10 +187,11 @@ class AutomationShop
      * @param {Element} parentDiv: The div to add the list to
      * @param {string} tabName: The tab label name
      * @param currency: The pokéclicker currency associated with the tab
+     * @param {boolean} evolutionStonesOnly: If true, only show evolution stones; if false, exclude evolution stones
      *
      * @returns True if the item is hidden, false otherwise
      */
-    static __internal__buildShopItemListMenu(parentDiv, tabName, currency)
+    static __internal__buildShopItemListMenu(parentDiv, tabName, currency, evolutionStonesOnly = false)
     {
         this.__internal__shopListCount += 1;
 
@@ -250,7 +252,10 @@ class AutomationShop
         let isAnyItemHidden = false;
         let isAnyItemVisible = false;
 
-        for (const itemData of this.__internal__shopItems.filter(data => data.item.currency === currency))
+        for (const itemData of this.__internal__shopItems.filter(data => {
+            const isEvolutionStone = Automation.Utils.isInstanceOf(data.item, "EvolutionStone");
+            return data.item.currency === currency && (evolutionStonesOnly ? isEvolutionStone : !isEvolutionStone);
+        }))
         {
             const isItemHidden = this.__internal__addItemToTheList(table, itemData);
             isAnyItemHidden |= isItemHidden;
