@@ -91,10 +91,27 @@ class AutomationShop
         titleDiv.style.marginBottom = "10px";
         shoppingSettingPanel.appendChild(titleDiv);
 
-        let isAnyItemHidden = this.__internal__buildShopItemListMenu(shoppingSettingPanel, "Pokédollars", GameConstants.Currency.money, false);
-        isAnyItemHidden |= this.__internal__buildShopItemListMenu(shoppingSettingPanel, "Evo Stones", GameConstants.Currency.money, true);
-        isAnyItemHidden |= this.__internal__buildShopItemListMenu(shoppingSettingPanel, "Eggs", GameConstants.Currency.questPoint, false);
-        isAnyItemHidden |= this.__internal__buildShopItemListMenu(shoppingSettingPanel, "Farm tools", GameConstants.Currency.farmPoint, false);
+        // Build tabs with specific item type filters
+        let isAnyItemHidden = this.__internal__buildShopItemListMenu(
+            shoppingSettingPanel,
+            "Pokédollars",
+            (data) => data.item.currency === GameConstants.Currency.money
+        );
+        isAnyItemHidden |= this.__internal__buildShopItemListMenu(
+            shoppingSettingPanel,
+            "Evo Stones",
+            (data) => Automation.Utils.isInstanceOf(data.item, "EvolutionStone")
+        );
+        isAnyItemHidden |= this.__internal__buildShopItemListMenu(
+            shoppingSettingPanel,
+            "Eggs",
+            (data) => Automation.Utils.isInstanceOf(data.item, "EggItem")
+        );
+        isAnyItemHidden |= this.__internal__buildShopItemListMenu(
+            shoppingSettingPanel,
+            "Farm tools",
+            (data) => data.item.currency === GameConstants.Currency.farmPoint
+        );
 
         // Set an unlock watcher if needed
         if (isAnyItemHidden)
@@ -186,18 +203,23 @@ class AutomationShop
      *
      * @param {Element} parentDiv: The div to add the list to
      * @param {string} tabName: The tab label name
-     * @param currency: The pokéclicker currency associated with the tab
-     * @param {boolean} evolutionStonesOnly: If true, only show evolution stones; if false, exclude evolution stones
+     * @param {Function} filterFunc: Function that returns true if the item should be included in this tab
      *
      * @returns True if the item is hidden, false otherwise
      */
-    static __internal__buildShopItemListMenu(parentDiv, tabName, currency, evolutionStonesOnly = false)
+    static __internal__buildShopItemListMenu(parentDiv, tabName, filterFunc)
     {
         this.__internal__shopListCount += 1;
 
         // Add the tab
         const shopSettingsTabsGroup = "automationShopSettings";
         const tabContainer = Automation.Menu.addTabElement(parentDiv, tabName, shopSettingsTabsGroup);
+
+        // Filter items for this tab
+        const filteredItems = this.__internal__shopItems.filter(filterFunc);
+
+        // Get the currency from the first item (all items in a tab should have the same currency)
+        const currency = filteredItems.length > 0 ? filteredItems[0].item.currency : GameConstants.Currency.money;
 
         // Add the min currency limit input
         const minCurrencyInputContainer = document.createElement("div");
@@ -252,10 +274,7 @@ class AutomationShop
         let isAnyItemHidden = false;
         let isAnyItemVisible = false;
 
-        for (const itemData of this.__internal__shopItems.filter(data => {
-            const isEvolutionStone = Automation.Utils.isInstanceOf(data.item, "EvolutionStone");
-            return data.item.currency === currency && (evolutionStonesOnly ? isEvolutionStone : !isEvolutionStone);
-        }))
+        for (const itemData of filteredItems)
         {
             const isItemHidden = this.__internal__addItemToTheList(table, itemData);
             isAnyItemHidden |= isItemHidden;
