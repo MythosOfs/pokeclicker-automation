@@ -513,6 +513,7 @@ class AutomationShop
                     //   - Energy restore
                     //   - Pokeballs (all types)
                     //   - Vitamins
+                    //   - Evolution Stones
                     //
                     // Eggs
                     //   - Eggs
@@ -525,6 +526,7 @@ class AutomationShop
                           || Automation.Utils.isInstanceOf(item, "EnergyRestore")
                           || Automation.Utils.isInstanceOf(item, "PokeballItem")
                           || Automation.Utils.isInstanceOf(item, "Vitamin")
+                          || Automation.Utils.isInstanceOf(item, "EvolutionStone")
 
                           || Automation.Utils.isInstanceOf(item, "EggItem")
 
@@ -684,7 +686,16 @@ class AutomationShop
             Automation.Utils.LocalStorage.setDefaultValue(
                 this.__internal__advancedSettings.MaxBuyUnitPrice(itemData.item.name), itemData.item.basePrice);
 
-            if (itemData.item.currency == GameConstants.Currency.money)
+            // Evolution stones: Buy 1 at a time and keep 1 in stock
+            if (Automation.Utils.isInstanceOf(itemData.item, "EvolutionStone"))
+            {
+                // Buy 1 item at a time
+                Automation.Utils.LocalStorage.setDefaultValue(this.__internal__advancedSettings.BuyAmount(itemData.item.name), 1);
+
+                // Keep 1 in stock
+                Automation.Utils.LocalStorage.setDefaultValue(this.__internal__advancedSettings.TargetAmount(itemData.item.name), 1);
+            }
+            else if (itemData.item.currency == GameConstants.Currency.money)
             {
                 // By 10 items at a time by default
                 Automation.Utils.LocalStorage.setDefaultValue(this.__internal__advancedSettings.BuyAmount(itemData.item.name), 10);
@@ -736,6 +747,15 @@ class AutomationShop
                 continue;
             }
             itemData.htmlElems.warning.hidden = true;
+
+            // For evolution stones, only buy if there are possible evolutions
+            if (Automation.Utils.isInstanceOf(itemData.item, "EvolutionStone"))
+            {
+                if (!this.__internal__hasPossibleEvolutions(itemData.item.name))
+                {
+                    continue;
+                }
+            }
 
             const targetAmount = parseInt(Automation.Utils.LocalStorage.getValue(this.__internal__advancedSettings.TargetAmount(itemData.item.name)));
 
@@ -833,6 +853,54 @@ class AutomationShop
         }
 
         return player.itemList[item.name]();
+    }
+
+    /**
+     * @brief Checks if there are any possible evolutions for the given evolution stone
+     *
+     * @param {string} stoneName: The name of the evolution stone
+     *
+     * @returns True if there are pokemon that can be evolved with this stone, false otherwise
+     */
+    static __internal__hasPossibleEvolutions(stoneName)
+    {
+        // Check if pokemonMap exists (it contains all pokemon data)
+        if (!App.game.party || !App.game.party.caughtPokemon || !pokemonMap)
+        {
+            return false;
+        }
+
+        // Get the stone type from the item name
+        const stoneType = GameConstants.StoneType[stoneName];
+        if (stoneType === undefined)
+        {
+            return false;
+        }
+
+        // Go through all caught pokemon
+        for (const caughtPokemon of App.game.party.caughtPokemon)
+        {
+            const pokemonId = caughtPokemon.id;
+            const pokemonData = pokemonMap[pokemonId];
+
+            if (!pokemonData || !pokemonData.evolutions)
+            {
+                continue;
+            }
+
+            // Check if any evolution uses this stone
+            for (const evolution of pokemonData.evolutions)
+            {
+                // Check if this evolution requires the stone we're checking
+                if (evolution.stone === stoneType ||
+                    (evolution.restrictions && evolution.restrictions.some(r => r.type === stoneType)))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
