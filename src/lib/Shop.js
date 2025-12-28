@@ -719,6 +719,15 @@ class AutomationShop
                 // Keep 1 in stock
                 Automation.Utils.LocalStorage.setDefaultValue(this.__internal__advancedSettings.TargetAmount(itemData.item.name), 1);
             }
+            // Egg items: Buy 1 at a time and keep 1 in stock
+            else if (Automation.Utils.isInstanceOf(itemData.item, "EggItem"))
+            {
+                // Buy 1 item at a time
+                Automation.Utils.LocalStorage.setDefaultValue(this.__internal__advancedSettings.BuyAmount(itemData.item.name), 1);
+
+                // Keep 1 in stock
+                Automation.Utils.LocalStorage.setDefaultValue(this.__internal__advancedSettings.TargetAmount(itemData.item.name), 1);
+            }
             else if (itemData.item.currency == GameConstants.Currency.money)
             {
                 // By 10 items at a time by default
@@ -776,6 +785,15 @@ class AutomationShop
             if (Automation.Utils.isInstanceOf(itemData.item, "EvolutionStone"))
             {
                 if (!this.__internal__hasPossibleEvolutions(itemData.item.name))
+                {
+                    continue;
+                }
+            }
+
+            // For egg items, only buy if there are uncaught pokemon in the egg
+            if (Automation.Utils.isInstanceOf(itemData.item, "EggItem"))
+            {
+                if (!this.__internal__hasUncaughtPokemonInEgg(itemData.item.name))
                 {
                     continue;
                 }
@@ -877,6 +895,53 @@ class AutomationShop
         }
 
         return player.itemList[item.name]();
+    }
+
+    /**
+     * @brief Checks if there are any uncaught pokemon in the given egg item
+     *
+     * @param {string} eggItemName: The name of the egg item (e.g., "Fire_egg")
+     *
+     * @returns True if there are uncaught pokemon in this egg, false otherwise
+     */
+    static __internal__hasUncaughtPokemonInEgg(eggItemName)
+    {
+        // Check if breeding and hatchList exist
+        if (!App.game.breeding || !App.game.breeding.hatchList)
+        {
+            return false;
+        }
+
+        // Get the egg type from the item name
+        const eggType = GameConstants.EggItemType[eggItemName];
+        if (eggType === undefined)
+        {
+            return false;
+        }
+
+        // Get the hatch list for this egg type
+        const hatchList = App.game.breeding.hatchList[eggType];
+        if (!hatchList)
+        {
+            return false;
+        }
+
+        // Get pokemon available up to the player's highest region
+        const highestRegion = player.highestRegion ? player.highestRegion() : 0;
+        const hatchable = hatchList.slice(0, highestRegion + 1).flat();
+
+        // Check if any pokemon is not caught yet
+        for (const pokemonName of hatchable)
+        {
+            const caughtStatus = PartyController.getCaughtStatusByName(pokemonName);
+            // CaughtStatus.NotCaught = 0, so if any is 0, we have uncaught pokemon
+            if (caughtStatus === 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
